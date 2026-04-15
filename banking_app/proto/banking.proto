@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package banking.v1;
+
+message Status {
+  bool ok = 1;
+  string message = 2;
+}
+
+message Customer {
+  int64 customer_id = 1;
+  string name = 2;
+  string address = 3;
+  string aadhaar = 4;
+  string contact = 5;
+}
+
+message Account {
+  int64 account_id = 1;
+  int64 customer_id = 2;
+  string account_type = 3;
+  int64 balance = 4;
+  bool is_closed = 5;
+}
+
+message CreateCustomerRequest {
+  string name = 1;
+  string address = 2;
+  string aadhaar = 3;
+  string contact = 4;
+}
+
+message CustomerResponse {
+  Status status = 1;
+  Customer customer = 2;
+}
+
+message CreateAccountRequest {
+  int64 customer_id = 1;
+  string account_type = 2;
+  int64 initial_deposit = 3;
+  string pin = 4;
+}
+
+message AccountResponse {
+  Status status = 1;
+  Account account = 2;
+}
+
+message DepositRequest {
+  int64 account_id = 1;
+  string pin = 2;
+  int64 amount = 3;
+}
+
+message WithdrawRequest {
+  int64 account_id = 1;
+  string pin = 2;
+  int64 amount = 3;
+}
+
+message TransactionResponse {
+  Status status = 1;
+  int64 new_balance = 2;
+}
+
+message BalanceRequest {
+  int64 account_id = 1;
+  string pin = 2;
+}
+
+message BalanceResponse {
+  Status status = 1;
+  int64 balance = 2;
+}
+
+message CloseAccountRequest {
+  int64 account_id = 1;
+  string pin = 2;
+}
+
+message CloseAccountResponse {
+  Status status = 1;
+}
+
+service BankService {
+  rpc CreateCustomer(CreateCustomerRequest) returns (CustomerResponse);
+  rpc CreateAccount(CreateAccountRequest) returns (AccountResponse);
+  rpc Deposit(DepositRequest) returns (TransactionResponse);
+  rpc Withdraw(WithdrawRequest) returns (TransactionResponse);
+  rpc GetBalance(BalanceRequest) returns (BalanceResponse);
+  rpc CloseAccount(CloseAccountRequest) returns (CloseAccountResponse);
+}
