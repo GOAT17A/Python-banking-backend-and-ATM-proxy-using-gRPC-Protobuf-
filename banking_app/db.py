@@ -8,6 +8,20 @@ import threading
 from dataclasses import dataclass
 from typing import Optional
 
+from banking_app.validation import (
+    ValidationError,
+    validate_aadhaar,
+    validate_account_id,
+    validate_account_type,
+    validate_address,
+    validate_amount,
+    validate_contact,
+    validate_customer_id,
+    validate_initial_deposit,
+    validate_name,
+    validate_pin,
+)
+
 
 @dataclass(frozen=True)
 class CustomerRecord:
@@ -96,18 +110,23 @@ class BankDB:
         )
 
     def create_customer(self, *, name: str, address: str, aadhaar: str, contact: str) -> CustomerRecord:
+        name = validate_name(name)
+        address = validate_address(address)
+        aadhaar_norm = validate_aadhaar(aadhaar)
+        contact_norm = validate_contact(contact)
+
         conn = self._conn()
         cur = conn.execute(
             "INSERT INTO customers(name,address,aadhaar,contact) VALUES (?,?,?,?)",
-            (name.strip(), address.strip(), aadhaar.strip(), contact.strip()),
+            (name, address, aadhaar_norm, contact_norm),
         )
         customer_id = int(cur.lastrowid)
         return CustomerRecord(
             customer_id=customer_id,
-            name=name.strip(),
-            address=address.strip(),
-            aadhaar=aadhaar.strip(),
-            contact=contact.strip(),
+            name=name,
+            address=address,
+            aadhaar=aadhaar_norm,
+            contact=contact_norm,
         )
 
     def create_account(
@@ -118,10 +137,10 @@ class BankDB:
         initial_deposit: int,
         pin: str,
     ) -> AccountRecord:
-        if initial_deposit < 0:
-            raise ValueError("initial_deposit must be >= 0")
-        if not pin or len(pin) < 4:
-            raise ValueError("PIN must be at least 4 characters")
+        customer_id = validate_customer_id(int(customer_id))
+        account_type = validate_account_type(account_type)
+        initial_deposit = validate_initial_deposit(int(initial_deposit))
+        pin = validate_pin(pin)
 
         conn = self._conn()
         salt = os.urandom(16)
@@ -157,6 +176,8 @@ class BankDB:
         )
 
     def _verify_pin(self, account_id: int, pin: str, *, conn: sqlite3.Connection) -> sqlite3.Row:
+        account_id = validate_account_id(int(account_id))
+        pin = validate_pin(pin)
         row = conn.execute(
             "SELECT id, customer_id, account_type, balance, pin_salt, pin_hash, is_closed FROM accounts WHERE id=?",
             (account_id,),
@@ -174,8 +195,9 @@ class BankDB:
         return row
 
     def deposit(self, *, account_id: int, pin: str, amount: int) -> int:
-        if amount <= 0:
-            raise ValueError("amount must be > 0")
+        account_id = validate_account_id(int(account_id))
+        pin = validate_pin(pin)
+        amount = validate_amount(int(amount), field="amount")
 
         conn = self._conn()
         conn.execute(self._BEGIN_IMMEDIATE)
@@ -194,8 +216,9 @@ class BankDB:
             raise
 
     def withdraw(self, *, account_id: int, pin: str, amount: int) -> int:
-        if amount <= 0:
-            raise ValueError("amount must be > 0")
+        account_id = validate_account_id(int(account_id))
+        pin = validate_pin(pin)
+        amount = validate_amount(int(amount), field="amount")
 
         conn = self._conn()
         conn.execute(self._BEGIN_IMMEDIATE)

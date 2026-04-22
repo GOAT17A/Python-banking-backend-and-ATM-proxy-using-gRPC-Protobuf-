@@ -3,10 +3,12 @@ from __future__ import annotations
 import grpc
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import IntPrompt, Prompt
+from rich.prompt import Prompt
 from rich.table import Table
 
 from banking_app.proto import banking_pb2, banking_pb2_grpc
+from banking_app.ui_prompts import prompt_int_validated, prompt_validated
+from banking_app.validation import validate_account_id, validate_amount, validate_pin
 
 
 def _print_status(console: Console, status: banking_pb2.Status) -> None:
@@ -18,14 +20,8 @@ def _print_status(console: Console, status: banking_pb2.Status) -> None:
 
 def _login(console: Console, stub: banking_pb2_grpc.BankServiceStub):
     while True:
-        account_id = IntPrompt.ask("Enter account number", default=0)
-        if account_id <= 0:
-            console.print("[yellow]Enter a valid account number.[/yellow]")
-            continue
-        pin = Prompt.ask("Enter PIN", password=True)
-        if not pin:
-            console.print("[yellow]PIN cannot be empty.[/yellow]")
-            continue
+        account_id = prompt_int_validated(console, label="Enter account number", validator=validate_account_id)
+        pin = prompt_validated(console, label="Enter PIN (4 digits)", validator=validate_pin, password=True)
 
         resp = stub.GetBalance(banking_pb2.BalanceRequest(account_id=account_id, pin=pin))
         if resp.status.ok:
@@ -38,7 +34,7 @@ def _login(console: Console, stub: banking_pb2_grpc.BankServiceStub):
 
 
 def _action_withdraw(console: Console, stub: banking_pb2_grpc.BankServiceStub, *, account_id: int, pin: str) -> None:
-    amount = IntPrompt.ask("Withdraw amount", default=0)
+    amount = prompt_int_validated(console, label="Withdraw amount", validator=lambda v: validate_amount(v, field="amount"))
     tx = stub.Withdraw(banking_pb2.WithdrawRequest(account_id=account_id, pin=pin, amount=amount))
     _print_status(console, tx.status)
     if tx.status.ok:
@@ -46,7 +42,7 @@ def _action_withdraw(console: Console, stub: banking_pb2_grpc.BankServiceStub, *
 
 
 def _action_deposit(console: Console, stub: banking_pb2_grpc.BankServiceStub, *, account_id: int, pin: str) -> None:
-    amount = IntPrompt.ask("Deposit amount", default=0)
+    amount = prompt_int_validated(console, label="Deposit amount", validator=lambda v: validate_amount(v, field="amount"))
     tx = stub.Deposit(banking_pb2.DepositRequest(account_id=account_id, pin=pin, amount=amount))
     _print_status(console, tx.status)
     if tx.status.ok:

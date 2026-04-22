@@ -51,7 +51,7 @@ def test_end_to_end_via_atm_proxy(atm_server):
         banking_pb2.CreateCustomerRequest(
             name="Eve",
             address="5 River St",
-            aadhaar="5555-6666-7777",
+            aadhaar="555566667777",
             contact="5555555555",
         )
     )
